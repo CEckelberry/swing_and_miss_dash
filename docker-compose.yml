@@ -1,0 +1,62 @@
+version: "3.9"
+services:
+
+  # downloader_iea service
+  downloader_iea:
+    build:
+      context: ./downloader_iea
+      dockerfile: Dockerfile
+    volumes:
+      - ./downloader_iea:/app
+      - ./data:/data
+
+  # downloader_imf service
+  downloader_imf:
+    build:
+      context: ./downloader_imf
+      dockerfile: Dockerfile
+    volumes:
+      - ./downloader_imf:/app
+      - ./data:/data
+
+ # Postgres database
+  postgres:
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=my_database
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - my_network
+    ports:
+      - "5432:5432"
+
+  # Streamlit service
+  streamlit:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    command: streamlit run app.py
+    volumes:
+      - ./dashboard:/dashboard
+    networks:
+      - my_network
+    ports:
+      - "8501:8501"
+
+  # Uploader service
+  uploader:
+    build:
+      context: ./data
+      dockerfile: Dockerfile
+    command: python3 uploader.py
+    volumes:
+      - ./data:/app
+    networks:
+      - my_network
+
+
+networks:
+  my_network: {}
