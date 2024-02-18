@@ -12,21 +12,18 @@ sidebar()
 # Specify what pages should be shown in the sidebar
 show_pages(
     [
-        Page("app.py", "Home", ":city_sunrise:"),
-        Page("energy_production.py", "Energy Production", ":factory:"),
-        Page("predictions.py", "Solar Production Predictions", ":chart_with_upwards_trend:"),
-        Page("position_player.py", "Position Players", ":biohazard_sign:"),
+        Page("app.py", "Home", ":baseball:"),
+        Page("energy_production.py", "Energy Production", ":stadium:"),
+        Page("predictions.py", "Solar Production Predictions", ":trophy:"),
+        Page("position_player.py", "Position Players", ":sports_medal:"),
         Page("solar_panels.py", "The number of solar panels needed for the substitution of fossil fuels", ":slot_machine:"),
     ]
 )
 
 #2 columns for main page
-col1, col2, col3 = st.columns([8,1,8])
-with col1:
-    st.header("Solar Production Output Benelux Region")
-    solar_production()
-with col2:
-    st.header(" ")
-with col3:
-    st.header("Greenhouse Gas Emissions Benelux Region")
-    ghg_emissions()
+# col1, col2, col3 = st.columns([8,1,8])
+# with col1:
+
+# with col2:
+#     st.header(" ")
+# with col3:
