@@ -13,17 +13,11 @@ sidebar()
 show_pages(
     [
         Page("app.py", "Home", ":baseball:"),
-        Page("energy_production.py", "Energy Production", ":stadium:"),
-        Page("predictions.py", "Solar Production Predictions", ":trophy:"),
-        Page("position_player.py", "Position Players", ":sports_medal:"),
-        Page("solar_panels.py", "The number of solar panels needed for the substitution of fossil fuels", ":slot_machine:"),
+        Page("energy_production.py", "Team Batting", ":stadium:"),
+        Page("energy_production.py", "Team Fielding", ":stadium:"),
+        Page("predictions.py", "Team Pitching", ":trophy:"),
+        Page("position_player_off.py", "Position Player Offense", ":sports_medal:"),
+        Page("position_player_def.py", "Position Player Defense", ":baseball:"),
+        Page("pitcher.py", "Pitcher", ":baseball:"),
     ]
 )
-
-#2 columns for main page
-# col1, col2, col3 = st.columns([8,1,8])
-# with col1:
-
-# with col2:
-#     st.header(" ")
-# with col3:

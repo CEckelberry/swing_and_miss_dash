@@ -7,7 +7,7 @@ from charts.position_player_chart import create_altair_chart
 from formatter.format import format_decimal_columns
 
 
-def player_calculator():
+def defense():
     credentials = service_account.Credentials.from_service_account_info(
         st.secrets["gcp_service_account"]
     )
@@ -21,38 +21,19 @@ def player_calculator():
     season_end = st.session_state.get("season_end")
     players = [st.session_state.get(f"player{i}") for i in range(1, 5)]
 
-    if st.button("Query"):
+    if st.button("Query Field"):
         results = []
         for player in players:
             if player:  # Ensure player name is not None or empty
                 player_query = f"""
-                SELECT Season, `Name`, AVG, OBP, SLG, `wRC_` AS `wRC+`, wOBA, OPS, BABIP, WAR, `K_` AS `K%`, `BB_` AS `BB%`, HR, Def, SB, CS, BsR, `_3B` AS `Triples`, `_2B` AS `Doubles`, RBI, `H` AS Hits, Age, G, PA
-                FROM `batting`.`indv_batting_stats`
+                SELECT Season, `Name`, "DRS", "UZR", "UZR_150", "Def", "OAA"
+                FROM `fielding`.`indv_fielding_stats`
                 WHERE LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start} AND `Season` <= {season_end}
                 ORDER BY `Season`
                 """
                 result = run_query(player_query)
                 if not result.empty:
                     results.append(result)
-
-        if results:
-            combined_results = pd.concat(results, ignore_index=True)
-            combined_results = format_decimal_columns(
-                combined_results,
-                ["AVG", "OBP", "SLG", "wOBA", "OPS", "BABIP"],
-            )
-
-            # Handle League Avg
-            league_avg_query = f"""
-            SELECT Season, 'League Avg' AS Name, AVG, OBP, SLG, `wRC_` AS `wRC+`, wOBA, OPS, BABIP, NULL AS WAR, NULL AS `K%`, NULL AS `BB%`, NULL AS HR, NULL AS Def, NULL AS SB, NULL AS CS, NULL AS BsR, NULL AS `Triples`, NULL AS `Doubles`, NULL AS RBI, NULL AS Hits, NULL AS Age, NULL AS G, NULL AS PA
-            FROM `league_avg_batting`.`advanced`
-            WHERE `Season` >= {season_start} AND `Season` <= {season_end}
-            ORDER BY `Season`
-            """
-            advanced_averages = run_query(league_avg_query)
-            result = pd.concat(
-                [combined_results, advanced_averages], ignore_index=True
-            ).fillna("na")
 
             # Visualize
             color_palette = ["#e3b505", "#db504a", "#4f6d7a", "#56a3a6", "#084c61"]
@@ -62,26 +43,7 @@ def player_calculator():
                 for i, name in enumerate(unique_names)
             }
 
-            stats = [
-                "AVG",
-                "OBP",
-                "SLG",
-                "HR",
-                "wRC+",
-                "SB",
-                "CS",
-                "BsR",
-                "Triples",
-                "Doubles",
-                "RBI",
-                "Hits",
-                "wOBA",
-                "WAR",
-                "K%",
-                "BB%",
-                "OPS",
-                "BABIP",
-            ]
+            stats = ["DRS", "UZR", "UZR_150", "Def", "OAA"]
 
             st.dataframe(result)
 
@@ -105,4 +67,4 @@ def player_calculator():
 
 
 if __name__ == "__main__":
-    player_calculator()
+    defense()
