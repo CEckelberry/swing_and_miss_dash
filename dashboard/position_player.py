@@ -16,6 +16,7 @@ add_page_title("Position Player", layout="wide")
 
 sidebar()
 
+
 def position_players():
 
     st.header("Batting")
@@ -30,17 +31,7 @@ def position_players():
     season_selectors_player()
 
     st.subheader("Mashed Results")
-    player_calculator()
-
-    st.subheader("wRC+")
-
-    st.subheader("wOBA")
-
-    st.subheader("WAR")
-
-    st.subheader("K%")
-
-    st.subheader("BB%")
+    player_comp = player_calculator()
 
     st.header("Fielding")
 
@@ -53,5 +44,6 @@ def position_players():
     st.subheader("Def")
 
     st.subheader("OAA")
+
 
 position_players()

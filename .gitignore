@@ -1,3 +1,3 @@
 venv/
 postgres_data/
-streamlit/secrets.toml
+!.streamlit/secrets.toml
