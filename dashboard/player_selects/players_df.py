@@ -19,6 +19,8 @@ def player_calculator():
 
     season_start = st.session_state.get("season_start")
     season_end = st.session_state.get("season_end")
+    season_start_player = st.session_state.get("season_start_player")
+    season_end_player = st.session_state.get("season_end_player")
     players = [st.session_state.get(f"player{i}") for i in range(1, 5)]
 
     if st.button("Query"):
@@ -28,7 +30,7 @@ def player_calculator():
                 player_query = f"""
                 SELECT Season, `Name`, AVG, OBP, SLG, `wRC_` AS `wRC+`, wOBA, OPS, BABIP, WAR, `K_` AS `K%`, `BB_` AS `BB%`, HR, Def, SB, CS, BsR, `_3B` AS `Triples`, `_2B` AS `Doubles`, RBI, `H` AS Hits, Age, G, PA
                 FROM `batting`.`indv_batting_stats`
-                WHERE LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start} AND `Season` <= {season_end}
+                WHERE LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start_player} AND `Season` <= {season_end_player}
                 ORDER BY `Season`
                 """
                 result = run_query(player_query)

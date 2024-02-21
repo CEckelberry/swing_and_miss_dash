@@ -3,11 +3,24 @@ import pandas as pd
 
 
 def create_altair_chart(data, stat, color_mapping):
-    filtered_data = (
-        data
-        if data.loc[data["Name"] == "League Avg", stat].iloc[0] != "na"
-        else data[data["Name"] != "League Avg"]
-    )
+    # First, check if the stat column exists in the dataframe
+    if stat not in data.columns:
+        print(f"Column '{stat}' not found in the dataframe.")
+        return None  # Ensure to handle this case appropriately in your code
+
+    # Initialize filtered_data
+    filtered_data = data
+
+    # Check if "League Avg" is in the dataframe and if the stat value for "League Avg" is not "na"
+    if "League Avg" in data["Name"].values:
+        league_avg_stat_value = data.loc[data["Name"] == "League Avg", stat].iloc[0]
+        if league_avg_stat_value == "na":
+            # If the league average stat value is "na", exclude "League Avg" from the dataset
+            filtered_data = data[data["Name"] != "League Avg"]
+    else:
+        # If "League Avg" is not present, no additional filtering is needed based on "League Avg"
+        # This line could be omitted, as filtered_data is already initialized to data
+        filtered_data = data
 
     # Adjust chart y-axis label precision based on stat and apply percentage formatting for K% and BB%
     if stat in ["K%", "BB%"]:

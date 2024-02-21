@@ -17,9 +17,6 @@ def position_players_def():
 
     st.header("Fielding")
 
-    st.subheader("League Average Selections")
-    season_selectors()
-
     st.subheader("Player Selection")
     player_select()
 

@@ -17,48 +17,67 @@ def defense():
         query_job = client.query(query)
         return pd.DataFrame([dict(row) for row in query_job.result()])
 
-    season_start = st.session_state.get("season_start")
-    season_end = st.session_state.get("season_end")
+    season_start = st.session_state.get("season_start_player")
+    season_end = st.session_state.get("season_end_player")
     players = [st.session_state.get(f"player{i}") for i in range(1, 5)]
 
     if st.button("Query Field"):
+        combined_results = pd.DataFrame()
         results = []
         for player in players:
-            if player:  # Ensure player name is not None or empty
+            # Ensure player name is not None or empty
+            if player and player.strip():
                 player_query = f"""
-                SELECT Season, `Name`, "DRS", "UZR", "UZR_150", "Def", "OAA"
+                SELECT Season, `Name`, `DRS`, `UZR`, `UZR_150`, `Def`, `OAA`
                 FROM `fielding`.`indv_fielding_stats`
                 WHERE LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start} AND `Season` <= {season_end}
                 ORDER BY `Season`
                 """
+                print(player_query)
                 result = run_query(player_query)
                 if not result.empty:
-                    results.append(result)
+                    combined_results = pd.concat([combined_results, result])
 
-            # Visualize
+        if not combined_results.empty:
+            # Convert stats to numeric
+            numeric_stats = ["DRS", "UZR", "UZR_150", "Def", "OAA"]
+            for stat in numeric_stats:
+                combined_results[stat] = pd.to_numeric(
+                    combined_results[stat], errors="coerce"
+                )
+
+            # Aggregate stats
+            aggregated_results = combined_results.groupby(
+                ["Season", "Name"], as_index=False
+            )[numeric_stats].sum()
+
             color_palette = ["#e3b505", "#db504a", "#4f6d7a", "#56a3a6", "#084c61"]
-            unique_names = sorted(result["Name"].unique())
+            unique_names = sorted(aggregated_results["Name"].unique())
             color_mapping = {
                 name: color_palette[i % len(color_palette)]
                 for i, name in enumerate(unique_names)
             }
 
-            stats = ["DRS", "UZR", "UZR_150", "Def", "OAA"]
+            stats = numeric_stats
 
-            st.dataframe(result)
+            st.dataframe(aggregated_results)
 
-            # Iterate through the stats in steps of 2 to create two charts per row
+            # Display charts in two columns
             for i in range(0, len(stats), 2):
-                cols = st.columns(2)  # Create two columns
-                with cols[0]:  # First column
-                    st.subheader(stats[i])
-                    chart = create_altair_chart(result, stats[i], color_mapping)
-                    st.altair_chart(chart, use_container_width=True)
-
-                if i + 1 < len(stats):  # Check if there is a next stat to display
-                    with cols[1]:  # Second column
+                cols = st.columns(2)  # Create two columns for side-by-side charts
+                with cols[0]:
+                    if i < len(stats):
+                        st.subheader(stats[i])
+                        chart = create_altair_chart(
+                            aggregated_results, stats[i], color_mapping
+                        )
+                        st.altair_chart(chart, use_container_width=True)
+                if i + 1 < len(stats):
+                    with cols[1]:
                         st.subheader(stats[i + 1])
-                        chart = create_altair_chart(result, stats[i + 1], color_mapping)
+                        chart = create_altair_chart(
+                            aggregated_results, stats[i + 1], color_mapping
+                        )
                         st.altair_chart(chart, use_container_width=True)
         else:
             st.error("No results found. Please check the input criteria.")
