@@ -26,7 +26,7 @@ def create_altair_chart(data, stat, color_mapping):
     if stat in ["K%", "BB%"]:
         # Directly use values as they are without converting to numeric or multiplying by 100
         filtered_data[stat] = filtered_data[stat].str.rstrip('%').astype(float)
-        print(data[stat])
+        # print(data[stat])
         y_axis = alt.Y(
             f"{stat}:Q",
             title=stat,
