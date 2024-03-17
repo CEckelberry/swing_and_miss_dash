@@ -6,7 +6,6 @@ from season_selects.season_selects_avg import season_selectors
 from season_selects.season_selects_players import season_selectors_player
 from player_selects.player_select import player_select
 from player_selects.players_df import player_calculator
-from player_selects.player_defense import defense
 
 
 add_page_title("Position Player", layout="wide")

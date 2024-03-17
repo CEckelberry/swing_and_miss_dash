@@ -24,18 +24,13 @@ def create_altair_chart(data, stat, color_mapping):
 
     # Adjust chart y-axis label precision based on stat and apply percentage formatting for K% and BB%
     if stat in ["K%", "BB%"]:
-        # Assuming 'data' is your DataFrame and 'stat' is the column name like 'K%' or 'BB%'
-        data[stat] = pd.to_numeric(
-            data[stat], errors="coerce"
-        )  # Convert to numeric, making 'na' into NaN
-        data[stat] = data[stat] * 100  # Perform the multiplication by 100
-        data[stat] = data[stat].fillna("na")  # Convert NaN back to 'na' strings
-
+        # Directly use values as they are without converting to numeric or multiplying by 100
+        filtered_data[stat] = filtered_data[stat].str.rstrip('%').astype(float)
         print(data[stat])
         y_axis = alt.Y(
             f"{stat}:Q",
             title=stat,
-            axis=alt.Axis(format=".0%"),  # Format as percentage with no decimal places
+            axis=alt.Axis(format=".2f"),  # Format as percentage with no decimal places
         )
     elif stat in ["AVG", "OBP", "SLG", "wOBA", "OPS", "BABIP"]:
         y_axis = alt.Y(f"{stat}:Q", title=stat, axis=alt.Axis(format=".3f"))
