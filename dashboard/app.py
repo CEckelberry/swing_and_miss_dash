@@ -14,7 +14,7 @@ show_pages(
         Page("app.py", "Home", ":baseball:"),
         Page("energy_production.py", "Team Batting", ":stadium:"),
         Page("energy_production.py", "Team Fielding", ":stadium:"),
-        Page("predictions.py", "Team Pitching", ":trophy:"),
+        Page("team_pitching.py", "Team Pitching", ":trophy:"),
         Page("position_player_off.py", "Position Player Offense", ":sports_medal:"),
         Page("position_player_def.py", "Position Player Defense", ":baseball:"),
         Page("pitcher.py", "Pitcher", ":baseball:"),
