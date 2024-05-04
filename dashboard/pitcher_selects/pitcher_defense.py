@@ -17,8 +17,8 @@ def defense():
         query_job = client.query(query)
         return pd.DataFrame([dict(row) for row in query_job.result()])
 
-    season_start = st.session_state.get("season_start_player")
-    season_end = st.session_state.get("season_end_player")
+    season_start = st.session_state.get("season_start")
+    season_end = st.session_state.get("season_end")
     players = [st.session_state.get(f"player{i}") for i in range(1, 5)]
 
     if st.button("Query Field"):
@@ -29,7 +29,7 @@ def defense():
             if player and player.strip():
                 player_query = f"""
                 SELECT Season, `Name`, `DRS`, `UZR`, `UZR_150`, `Def`, `OAA`
-                FROM `fielding`.`indv_fielding_stats`
+                FROM `raw_data`.`fielding_stats`
                 WHERE LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start} AND `Season` <= {season_end}
                 ORDER BY `Season`
                 """

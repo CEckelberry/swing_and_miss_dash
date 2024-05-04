@@ -16,10 +16,8 @@ def pitcher_calculator():
         query_job = client.query(query)
         return pd.DataFrame([dict(row) for row in query_job.result()])
 
-    season_start = st.session_state.get("season_start")
-    season_end = st.session_state.get("season_end")
-    season_start_player = st.session_state.get("season_start_player")
-    season_end_player = st.session_state.get("season_end_player")
+    season_start_player = st.session_state.get("season_start")
+    season_end_player = st.session_state.get("season_end")
     players = [st.session_state.get(f"player{i}") for i in range(1, 5)]
 
     if st.button("Query"):
@@ -28,7 +26,7 @@ def pitcher_calculator():
             if player:  # Ensure player name is not None or empty
                 player_query = f"""
                     SELECT Season, `Name`, SIERA, IP, xFIP, `K_9` AS `K|9`, FIP, `GB_` AS `GB%`, `K_` AS `K%`, BABIP, WAR, `vFA__sc_` AS `vFA_sc`, ERA, `BB_` AS `BB%`, `BB_9` AS `BB|9`, SO, `SwStr_` AS `SwStr%`, `LOB_` AS `LOB%`,HR_FB AS `HR|FB`, `K_BB` AS `K|BB`, WHIP, BB, Age
-                    FROM `pitching`.`indv_pitching_stats`
+                    FROM `raw_data`.`pitching_stats`
                     WHERE LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start_player} AND `Season` <= {season_end_player}
                     ORDER BY `Season`
                 """

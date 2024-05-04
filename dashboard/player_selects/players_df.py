@@ -17,10 +17,10 @@ def player_calculator():
         query_job = client.query(query)
         return pd.DataFrame([dict(row) for row in query_job.result()])
 
-    season_start = st.session_state.get("season_start")
-    season_end = st.session_state.get("season_end")
-    season_start_player = st.session_state.get("season_start_player")
-    season_end_player = st.session_state.get("season_end_player")
+    selected_avg_season_start = st.session_state.get("selected_avg_season_start")
+    selected_avg_season_end = st.session_state.get("selected_avg_season_end")
+    season_start_player = st.session_state.get("season_start")
+    season_end_player = st.session_state.get("season_end")
     players = [st.session_state.get(f"player{i}") for i in range(1, 5)]
 
     if st.button("Query"):
@@ -28,11 +28,12 @@ def player_calculator():
         for player in players:
             if player:  # Ensure player name is not None or empty
                 player_query = f"""
-                SELECT Season, `Name`, AVG, OBP, SLG, `wRC_` AS `wRC+`, wOBA, OPS, BABIP, WAR, `K_` AS `K%`, `BB_` AS `BB%`, HR, Def, SB, CS, BsR, `_3B` AS `Triples`, `_2B` AS `Doubles`, RBI, `H` AS Hits, Age, G, PA
-                FROM `batting`.`indv_batting_stats`
+                SELECT Season, `Name`, AVG, OBP, SLG, `wRC_` AS `wRC+`, wOBA, OPS, BABIP, WAR, `K_` AS `K%`, `BB_` AS `BB%`, HR, Def, SB, CS, BsR, `3B` AS `Triples`, `2B` AS `Doubles`, RBI, `H` AS Hits, Age, G, PA
+                FROM `raw_data`.`batting_stats`
                 WHERE LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start_player} AND `Season` <= {season_end_player}
                 ORDER BY `Season`
                 """
+                print(player_query)
                 result = run_query(player_query)
                 if not result.empty:
                     results.append(result)
@@ -48,9 +49,10 @@ def player_calculator():
             league_avg_query = f"""
             SELECT Season, 'League Avg' AS Name, AVG, OBP, SLG, `wRC_` AS `wRC+`, wOBA, OPS, BABIP, NULL AS WAR, NULL AS `K%`, NULL AS `BB%`, NULL AS HR, NULL AS Def, NULL AS SB, NULL AS CS, NULL AS BsR, NULL AS `Triples`, NULL AS `Doubles`, NULL AS RBI, NULL AS Hits, NULL AS Age, NULL AS G, NULL AS PA
             FROM `league_avg_batting`.`advanced`
-            WHERE `Season` >= {season_start} AND `Season` <= {season_end}
+            WHERE `Season` >= {selected_avg_season_start} AND `Season` <= {selected_avg_season_end}
             ORDER BY `Season`
             """
+            print(league_avg_query)
             advanced_averages = run_query(league_avg_query)
             result = pd.concat(
                 [combined_results, advanced_averages], ignore_index=True

@@ -30,16 +30,14 @@ season = st.selectbox('Select the season:', seasons, index=0)
 # Fetch data based on the selected season
 def fetch_data(season):
     query = f"""
-    SELECT Season, `Team`, `W`, `L`, `ERA`, `G`, `GS`, `CG`, `SV`, `BS`, `IP`, `H`, `R`, `HR`, `BB`, `HBP`,
-           `Balls`, `Strikes`, `K_9`, `BB_9`, `K_BB`, `H_9`, `HR_9`, `AVG`, `WHIP`, `BABIP`, `LOB_`, `FIP`,
-           `GB_FB`, `LD_`, `GB_`, `FB_`, `HR_FB`, `Start_IP`, `Relief_IP`, `WAR`, `xFIP`, `SIERA`, `xERA`,
-           `Barrel_`, `HardHit_`
-    FROM `raw_data`.`team_pitching_stats`
+    SELECT Season, `Team`, DPS, UZR, UZR_150, Def, OAA, ErrR
+    FROM `raw_data`.`team_fielding_stats`
     WHERE `Season` = {season}
     """
     return pd.read_gbq(query, credentials=credentials, dialect='standard')
 
 data = fetch_data(season)
+print(data)
 
 # Display charts for each stat, sorted by the statistic value
 stat_columns = data.columns[2:]  # Exclude 'Season' and 'Team' columns for stats
