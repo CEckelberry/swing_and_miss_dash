@@ -5,6 +5,7 @@ from google.oauth2 import service_account
 from google.cloud import bigquery
 from charts.position_player_chart import create_altair_chart
 from formatter.format import format_decimal_columns
+import datetime
 
 def pitcher_calculator():
     credentials = service_account.Credentials.from_service_account_info(
@@ -24,15 +25,48 @@ def pitcher_calculator():
         results = []
         for player in players:
             if player:  # Ensure player name is not None or empty
-                player_query = f"""
-                    SELECT Season, `Name`, SIERA, IP, xFIP, `K_9` AS `K|9`, FIP, `GB_` AS `GB%`, `K_` AS `K%`, BABIP, WAR, `vFA__sc_` AS `vFA_sc`, ERA, `BB_` AS `BB%`, `BB_9` AS `BB|9`, SO, `SwStr_` AS `SwStr%`, `LOB_` AS `LOB%`,HR_FB AS `HR|FB`, `K_BB` AS `K|BB`, WHIP, BB, Age
-                    FROM `raw_data`.`pitching_stats`
-                    WHERE LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start_player} AND `Season` <= {season_end_player}
-                    ORDER BY `Season`
-                """
-                result = run_query(player_query)
-                if not result.empty:
-                    results.append(result)
+                # Get the current year
+                current_year = datetime.datetime.now().year
+
+                if season_start_player >= current_year or season_end_player >= current_year:
+                    # Query for the current year or later
+                    player_query = f"""
+                    SELECT 
+                        Season, `Name`, SIERA, IP, xFIP, `K_9` AS `K|9`, FIP, `GB_` AS `GB%`, `K_` AS `K%`, BABIP, WAR, 
+                        `vFA__sc_` AS `vFA_sc`, ERA, `BB_` AS `BB%`, `BB_9` AS `BB|9`, SO, `SwStr_` AS `SwStr%`, `LOB_` AS `LOB%`,
+                        HR_FB AS `HR|FB`, `K_BB` AS `K|BB`, WHIP, BB, Age
+                    FROM 
+                        `raw_data`.`pitching_stats`
+                    WHERE 
+                        LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start_player} AND `Season` <= {season_end_player}
+                        AND `upload_date` = (
+                            SELECT MAX(`upload_date`)
+                            FROM `raw_data`.`pitching_stats`
+                            WHERE LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start_player} AND `Season` <= {season_end_player}
+                        )
+                    ORDER BY 
+                        `Season`
+                    """
+                    result = run_query(player_query)
+                    if not result.empty:
+                        results.append(result)
+                else:
+                    # Query for seasons before the current year
+                    player_query = f"""
+                    SELECT 
+                        Season, `Name`, SIERA, IP, xFIP, `K_9` AS `K|9`, FIP, `GB_` AS `GB%`, `K_` AS `K%`, BABIP, WAR, 
+                        `vFA__sc_` AS `vFA_sc`, ERA, `BB_` AS `BB%`, `BB_9` AS `BB|9`, SO, `SwStr_` AS `SwStr%`, `LOB_` AS `LOB%`,
+                        HR_FB AS `HR|FB`, `K_BB` AS `K|BB`, WHIP, BB, Age
+                    FROM 
+                        `raw_data`.`pitching_stats`
+                    WHERE 
+                        LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start_player} AND `Season` <= {season_end_player}
+                    ORDER BY 
+                        `Season`
+                    """
+                    result = run_query(player_query)
+                    if not result.empty:
+                        results.append(result)
 
         if results:
             combined_results = pd.concat(results, ignore_index=True)

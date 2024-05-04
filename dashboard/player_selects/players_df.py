@@ -5,6 +5,10 @@ from google.oauth2 import service_account
 from google.cloud import bigquery
 from charts.position_player_chart import create_altair_chart
 from formatter.format import format_decimal_columns
+import datetime
+
+# Get the current year
+current_year = datetime.datetime.now().year
 
 
 def player_calculator():
@@ -27,14 +31,40 @@ def player_calculator():
         results = []
         for player in players:
             if player:  # Ensure player name is not None or empty
-                player_query = f"""
-                SELECT Season, `Name`, AVG, OBP, SLG, `wRC_` AS `wRC+`, wOBA, OPS, BABIP, WAR, `K_` AS `K%`, `BB_` AS `BB%`, HR, Def, SB, CS, BsR, `3B` AS `Triples`, `2B` AS `Doubles`, RBI, `H` AS Hits, Age, G, PA
-                FROM `raw_data`.`batting_stats`
-                WHERE LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start_player} AND `Season` <= {season_end_player}
-                ORDER BY `Season`
-                """
+                if season_start_player >= current_year or season_end_player >= current_year:
+                    # Adjust query to filter by the latest 'upload_date' for the current year or later
+                    player_query = f"""
+                    SELECT 
+                        Season, `Name`, AVG, OBP, SLG, `wRC_` AS `wRC+`, wOBA, OPS, BABIP, WAR, `K_` AS `K%`, `BB_` AS `BB%`, HR, Def, SB, CS, BsR,
+                        `3B` AS `Triples`, `2B` AS `Doubles`, RBI, `H` AS Hits, Age, G, PA
+                    FROM 
+                        `raw_data`.`batting_stats`
+                    WHERE 
+                        LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start_player} AND `Season` <= {season_end_player}
+                        AND `upload_date` = (
+                            SELECT MAX(`upload_date`)
+                            FROM `raw_data`.`batting_stats`
+                            WHERE LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start_player} AND `Season` <= {season_end_player}
+                        )
+                    ORDER BY 
+                        `Season`
+                    """
+                else:
+                    # Standard query for seasons before the current year
+                    player_query = f"""
+                    SELECT 
+                        Season, `Name`, AVG, OBP, SLG, `wRC_` AS `wRC+`, wOBA, OPS, BABIP, WAR, `K_` AS `K%`, `BB_` AS `BB%`, HR, Def, SB, CS, BsR,
+                        `3B` AS `Triples`, `2B` AS `Doubles`, RBI, `H` AS Hits, Age, G, PA
+                    FROM 
+                        `raw_data`.`batting_stats`
+                    WHERE 
+                        LOWER(`Name`) LIKE LOWER('%{player}%') AND `Season` >= {season_start_player} AND `Season` <= {season_end_player}
+                    ORDER BY 
+                        `Season`
+                    """
+                
                 print(player_query)
-                result = run_query(player_query)
+                result = run_query(player_query)  # Assume run_query is a function that executes the SQL query and returns a DataFrame
                 if not result.empty:
                     results.append(result)
 

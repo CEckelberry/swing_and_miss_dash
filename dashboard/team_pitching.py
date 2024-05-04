@@ -3,7 +3,7 @@ import pandas as pd
 import altair as alt
 from google.cloud import bigquery
 from google.oauth2 import service_account
-
+import datetime
 # Credentials and client setup
 credentials = service_account.Credentials.from_service_account_info(st.secrets["gcp_service_account"])
 client = bigquery.Client(credentials=credentials)
@@ -24,19 +24,43 @@ team_colors = {
 seasons = list(range(2024, 1960, -1))  # Seasons from 2024 to 1990
 
 # Season selector with the current year as the default
-current_year = 2024
+# Get the current year
+current_year = datetime.datetime.now().year
 season = st.selectbox('Select the season:', seasons, index=0)
 
 # Fetch data based on the selected season
 def fetch_data(season):
-    query = f"""
-    SELECT Season, `Team`, `W`, `L`, `ERA`, `G`, `GS`, `CG`, `SV`, `BS`, `IP`, `H`, `R`, `HR`, `BB`, `HBP`,
-           `Balls`, `Strikes`, `K_9`, `BB_9`, `K_BB`, `H_9`, `HR_9`, `AVG`, `WHIP`, `BABIP`, `LOB_`, `FIP`,
-           `GB_FB`, `LD_`, `GB_`, `FB_`, `HR_FB`, `Start_IP`, `Relief_IP`, `WAR`, `xFIP`, `SIERA`, `xERA`,
-           `Barrel_`, `HardHit_`
-    FROM `raw_data`.`team_pitching_stats`
-    WHERE `Season` = {season}
-    """
+    if season >= current_year:
+    # Query for seasons 2024 or later, filtering by the latest 'upload_date'
+        query = f"""
+            SELECT 
+                Season, `Team`, `W`, `L`, `ERA`, `G`, `GS`, `CG`, `SV`, `BS`, `IP`, `H`, `R`, `HR`, `BB`, `HBP`,
+                `Balls`, `Strikes`, `K_9`, `BB_9`, `K_BB`, `H_9`, `HR_9`, `AVG`, `WHIP`, `BABIP`, `LOB_`, `FIP`,
+                `GB_FB`, `LD_`, `GB_`, `FB_`, `HR_FB`, `Start_IP`, `Relief_IP`, `WAR`, `xFIP`, `SIERA`, `xERA`,
+                `Barrel_`, `HardHit_`
+            FROM 
+                `raw_data`.`team_pitching_stats`
+            WHERE 
+                `Season` = {season}
+                AND `upload_date` = (
+                    SELECT MAX(`upload_date`)
+                    FROM `raw_data`.`team_pitching_stats`
+                    WHERE `Season` = {season}
+                )
+            """
+    else:
+        # Query for seasons before 2024, ignoring 'upload_date'
+        query = f"""
+        SELECT 
+            Season, `Team`, `W`, `L`, `ERA`, `G`, `GS`, `CG`, `SV`, `BS`, `IP`, `H`, `R`, `HR`, `BB`, `HBP`,
+            `Balls`, `Strikes`, `K_9`, `BB_9`, `K_BB`, `H_9`, `HR_9`, `AVG`, `WHIP`, `BABIP`, `LOB_`, `FIP`,
+            `GB_FB`, `LD_`, `GB_`, `FB_`, `HR_FB`, `Start_IP`, `Relief_IP`, `WAR`, `xFIP`, `SIERA`, `xERA`,
+            `Barrel_`, `HardHit_`
+        FROM 
+            `raw_data`.`team_pitching_stats`
+        WHERE 
+            `Season` = {season}
+        """
     return pd.read_gbq(query, credentials=credentials, dialect='standard')
 
 data = fetch_data(season)
