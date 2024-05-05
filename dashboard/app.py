@@ -12,6 +12,7 @@ sidebar()
 show_pages(
     [
         Page("app.py", "Home", ":globe_with_meridians:"),
+        Page("weekly_article.py", "Weekly Article", ":globe_with_meridians:"),
         Page("team_hitting.py", "Team Batting", ":us:"),
         Page("team_fielding.py", "Team Fielding", ":stadium:"),
         Page("team_pitching.py", "Team Pitching", ":trophy:"),
