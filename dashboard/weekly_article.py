@@ -1,87 +1,287 @@
 import streamlit as st
 import pandas as pd
-import altair as alt
 from google.cloud import bigquery
 from google.oauth2 import service_account
 import datetime
+from gemini.gemini_api import generate_gemini_content
+
+# Constants
+SEASON_START = datetime.date(datetime.datetime.now().year, 4, 1)
+SEASON_END = datetime.date(datetime.datetime.now().year, 10, 8)
+AVERAGE_PA = 550
+AVERAGE_STARTER_IP = 180  # Average IP for starting pitchers
+AVERAGE_RELIEVER_IP = 60  # Average IP for relief pitchers
+
+# Calculate season progress
+today = datetime.date.today()
+season_days_total = (SEASON_END - SEASON_START).days
+season_days_elapsed = (today - SEASON_START).days
+season_progress = season_days_elapsed / season_days_total
+
+# Calculate dynamic minimum PA and IP
+min_pa = round(AVERAGE_PA * season_progress)
+min_starter_ip = round(AVERAGE_STARTER_IP * season_progress)
+min_reliever_ip = round(AVERAGE_RELIEVER_IP * season_progress)
+max_reliever_ip = min_reliever_ip + 5  # Adding a small range to consider upper limit
 
 # Credentials and client setup
 credentials = service_account.Credentials.from_service_account_info(st.secrets["gcp_service_account"])
 client = bigquery.Client(credentials=credentials)
 
-# Define team colors
-team_colors = {
-    "ARI": "#a71930", "ATL": "#13274f", "BAL": "#df4601", "BOS": "#bd3039",
-    "CHC": "#0e3386", "CHW": "#27251f", "CIN": "#c6011f", "CLE": "#e31937",
-    "COL": "#33006f", "DET": "#0c2340", "HOU": "#eb6e1f", "KCR": "#bd9b60",
-    "LAA": "#ba0021", "LAD": "#005a9c", "MIA": "#00a3e0", "MIL": "#0a2351",
-    "MIN": "#002b5c", "NYM": "#ff5910", "NYY": "#0c2340", "OAK": "#003831",
-    "PHI": "#e81828", "PIT": "#fdb827", "SDP": "#2f241d", "SEA": "#005c5c",
-    "SFG": "#fd5a1e", "STL": "#c41e3a", "TBR": "#8fbce6", "TEX": "#003278",
-    "TOR": "#134a8e", "WSN": "#ab0003"
-}
-
-
-# Get the current year and define seasons in descending order
+# Get the current year
 current_year = datetime.datetime.now().year
 season = current_year
 
-# Function to fetch data based on the selected season
+# Function to fetch data based on the query
 def fetch_data(query):
     return pd.read_gbq(query, credentials=credentials, dialect='standard')
 
-# Define queries for current season's top and bottom pitchers and teams
-def top_bottom_query(stat, table, time_frame='season', top=True, limit=5):
-    direction = "DESC" if top else "ASC"
-    date_filter = f"AND `upload_date` >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)" if time_frame == 'week' else ""
-    query = f"""
+# Define queries for top and bottom starting pitchers
+top_10_starting_pitchers_query = f"""
+WITH ranked_pitchers AS (
     SELECT 
-        Season, `Team` or `Name`, `W`
+        `Season`, `Name`, ROUND(`SIERA`, 2) AS `SIERA`, ROUND(`IP`, 1) AS `IP`, ROUND(`xFIP`, 2) AS `xFIP`, 
+        `K_9` AS `K|9`, `FIP`, `GB_` AS `GB%`, `K_` AS `K%`, `BABIP`, `WAR`, `vFA__sc_` AS `vFA_sc`, `ERA`, 
+        `BB_` AS `BB%`, `BB_9` AS `BB|9`, `SO`, `SwStr_` AS `SwStr%`, `LOB_` AS `LOB%`, `HR_FB` AS `HR|FB`, 
+        `K_BB` AS `K|BB`, `WHIP`, `BB`, `Age`,
+        ROW_NUMBER() OVER (PARTITION BY `Name` ORDER BY `SIERA` ASC) AS row_num
     FROM 
-        `raw_data`.`{team}`
-    WHERE 
-        `Season` = {season} {date_filter}
-    ORDER BY 
-        `{stat}` {direction}
-    LIMIT {limit}
+        `raw_data`.`pitching_stats`
+    WHERE
+        `Season` = {season} AND `IP` > {min_starter_ip}
+)
+SELECT * EXCEPT(row_num)
+FROM ranked_pitchers
+WHERE row_num = 1
+ORDER BY `SIERA` ASC
+LIMIT 10
+"""
+
+bottom_10_starting_pitchers_query = f"""
+WITH ranked_pitchers AS (
+    SELECT 
+        `Season`, `Name`, ROUND(`SIERA`, 2) AS `SIERA`, ROUND(`IP`, 1) AS `IP`, ROUND(`xFIP`, 2) AS `xFIP`, 
+        `K_9` AS `K|9`, `FIP`, `GB_` AS `GB%`, `K_` AS `K%`, `BABIP`, `WAR`, `vFA__sc_` AS `vFA_sc`, `ERA`, 
+        `BB_` AS `BB%`, `BB_9` AS `BB|9`, `SO`, `SwStr_` AS `SwStr%`, `LOB_` AS `LOB%`, `HR_FB` AS `HR|FB`, 
+        `K_BB` AS `K|BB`, `WHIP`, `BB`, `Age`,
+        ROW_NUMBER() OVER (PARTITION BY `Name` ORDER BY `SIERA` DESC) AS row_num
+    FROM 
+        `raw_data`.`pitching_stats`
+    WHERE
+        `Season` = {season} AND `IP` > {min_starter_ip}
+)
+SELECT * EXCEPT(row_num)
+FROM ranked_pitchers
+WHERE row_num = 1
+ORDER BY `SIERA` DESC
+LIMIT 10
+"""
+
+# Define queries for top and bottom relief pitchers
+top_10_reliever_pitchers_query = f"""
+WITH ranked_relievers AS (
+    SELECT 
+        `Season`, `Name`, ROUND(`SIERA`, 2) AS `SIERA`, ROUND(`IP`, 1) AS `IP`, ROUND(`xFIP`, 2) AS `xFIP`, 
+        `K_9` AS `K|9`, `FIP`, `GB_` AS `GB%`, `K_` AS `K%`, `BABIP`, `WAR`, `vFA__sc_` AS `vFA_sc`, `ERA`, 
+        `BB_` AS `BB%`, `BB_9` AS `BB|9`, `SO`, `SwStr_` AS `SwStr%`, `LOB_` AS `LOB%`, `HR_FB` AS `HR|FB`, 
+        `K_BB` AS `K|BB`, `WHIP`, `BB`, `Age`,
+        ROW_NUMBER() OVER (PARTITION BY `Name` ORDER BY `SIERA` ASC) AS row_num
+    FROM 
+        `raw_data`.`pitching_stats`
+    WHERE
+        `Season` = {season} AND `IP` BETWEEN {min_reliever_ip} AND {max_reliever_ip}
+)
+SELECT * EXCEPT(row_num)
+FROM ranked_relievers
+WHERE row_num = 1
+ORDER BY `SIERA` ASC
+LIMIT 10
+"""
+
+bottom_10_reliever_pitchers_query = f"""
+WITH ranked_relievers AS (
+    SELECT 
+        `Season`, `Name`, ROUND(`SIERA`, 2) AS `SIERA`, ROUND(`IP`, 1) AS `IP`, ROUND(`xFIP`, 2) AS `xFIP`, 
+        `K_9` AS `K|9`, `FIP`, `GB_` AS `GB%`, `K_` AS `K%`, `BABIP`, `WAR`, `vFA__sc_` AS `vFA_sc`, `ERA`, 
+        `BB_` AS `BB%`, `BB_9` AS `BB|9`, `SO`, `SwStr_` AS `SwStr%`, `LOB_` AS `LOB%`, `HR_FB` AS `HR|FB`, 
+        `K_BB` AS `K|BB`, `WHIP`, `BB`, `Age`,
+        ROW_NUMBER() OVER (PARTITION BY `Name` ORDER BY `SIERA` DESC) AS row_num
+    FROM 
+        `raw_data`.`pitching_stats`
+    WHERE
+        `Season` = {season} AND `IP` BETWEEN {min_reliever_ip} AND {max_reliever_ip}
+)
+SELECT * EXCEPT(row_num)
+FROM ranked_relievers
+WHERE row_num = 1
+ORDER BY `SIERA` DESC
+LIMIT 10
+"""
+
+# Define queries for top and bottom batters
+top_10_batters_query = f"""
+WITH ranked_batters AS (
+    SELECT 
+        `Season`, `Name`, ROUND(`AVG`, 3) AS `AVG`, ROUND(`OBP`, 3) AS `OBP`, ROUND(`SLG`, 3) AS `SLG`, 
+        `wRC_`, ROUND(`wOBA`, 3) AS `wOBA`, ROUND(`OPS`, 3) AS `OPS`, ROUND(`BABIP`, 3) AS `BABIP`, `WAR`, 
+        `K_` AS `K%`, `BB_` AS `BB%`, `HR`, `Def`, `SB`, `CS`, `BsR`, `3B` AS `Triples`, `2B` AS `Doubles`, 
+        `RBI`, `H` AS `Hits`, `Age`, `G`, `PA`,
+        ROW_NUMBER() OVER (PARTITION BY `Name` ORDER BY `wRC_` DESC) AS row_num
+    FROM 
+        `raw_data`.`batting_stats`
+    WHERE
+        `Season` = {season} AND `PA` >= {min_pa}
+)
+SELECT 
+    `Season`, `Name`, `AVG`, `OBP`, `SLG`, `wRC_` AS `wRC+`, `wOBA`, `OPS`, `BABIP`, `WAR`, `K%`, `BB%`, `HR`, `Def`, `SB`, `CS`, `BsR`,
+    `Triples`, `Doubles`, `RBI`, `Hits`, `Age`, `G`, `PA`
+FROM ranked_batters
+WHERE row_num = 1
+ORDER BY `wRC+` DESC
+LIMIT 10
+"""
+
+bottom_10_batters_query = f"""
+WITH ranked_batters AS (
+    SELECT 
+        `Season`, `Name`, ROUND(`AVG`, 3) AS `AVG`, ROUND(`OBP`, 3) AS `OBP`, ROUND(`SLG`, 3) AS `SLG`, 
+        `wRC_`, ROUND(`wOBA`, 3) AS `wOBA`, ROUND(`OPS`, 3) AS `OPS`, ROUND(`BABIP`, 3) AS `BABIP`, `WAR`, 
+        `K_` AS `K%`, `BB_` AS `BB%`, `HR`, `Def`, `SB`, `CS`, `BsR`, `3B` AS `Triples`, `2B` AS `Doubles`, 
+        `RBI`, `H` AS `Hits`, `Age`, `G`, `PA`,
+        ROW_NUMBER() OVER (PARTITION BY `Name` ORDER BY `wRC_` ASC) AS row_num
+    FROM 
+        `raw_data`.`batting_stats`
+    WHERE
+        `Season` = {season} AND `PA` >= {min_pa}
+)
+SELECT 
+    `Season`, `Name`, `AVG`, `OBP`, `SLG`, `wRC_` AS `wRC+`, `wOBA`, `OPS`, `BABIP`, `WAR`, `K%`, `BB%`, `HR`, `Def`, `SB`, `CS`, `BsR`,
+    `Triples`, `Doubles`, `RBI`, `Hits`, `Age`, `G`, `PA`
+FROM ranked_batters
+WHERE row_num = 1
+ORDER BY `wRC+` ASC
+LIMIT 10
+"""
+
+# Google Gemini API integration for generating content for each section
+def generate_section_content(title, dataframe):
+    data_markdown = dataframe.to_markdown()
+    prompt = f"{title}:\n{data_markdown}\nProvide a summary and analysis of the above data."
+    content = generate_gemini_content(prompt)
+    return content
+
+# Updated article creation function with Gemini API calls
+def create_weekly_article(top_starting_pitchers, bottom_starting_pitchers, top_reliever_pitchers, bottom_reliever_pitchers, top_batters, bottom_batters):
+    top_starting_pitchers_content = generate_section_content("Top 10 Starting Pitchers", top_starting_pitchers)
+    bottom_starting_pitchers_content = generate_section_content("Bottom 10 Starting Pitchers", bottom_starting_pitchers)
+    top_reliever_pitchers_content = generate_section_content("Top 10 Relief Pitchers", top_reliever_pitchers)
+    bottom_reliever_pitchers_content = generate_section_content("Bottom 10 Relief Pitchers", bottom_reliever_pitchers)
+    top_batters_content = generate_section_content("Top 10 Batters", top_batters)
+    bottom_batters_content = generate_section_content("Bottom 10 Batters", bottom_batters)
+
+    article = f"""
+    # Weekly Baseball Report
+
+    ## Top 10 Starting Pitchers
+    {top_starting_pitchers_content}
+
+    ## Bottom 10 Starting Pitchers
+    {bottom_starting_pitchers_content}
+
+    ## Top 10 Relief Pitchers
+    {top_reliever_pitchers_content}
+
+    ## Bottom 10 Relief Pitchers
+    {bottom_reliever_pitchers_content}
+
+    ## Top 10 Batters
+    {top_batters_content}
+
+    ## Bottom 10 Batters
+    {bottom_batters_content}
     """
-    return query
+    return article
 
-# Fetching and displaying data
-# Assuming 'K_9' for pitchers and 'wRC+' for teams as example stats
-top_pitchers_season = fetch_data(top_bottom_query('K_9', 'pitching_stats'))
-bottom_pitchers_week = fetch_data(top_bottom_query('K_9', 'pitching_stats', 'week', False))
-top_teams_week = fetch_data(top_bottom_query('wRC+', 'team_batting_stats', 'week'))
-bottom_teams_week = fetch_data(top_bottom_query('wRC+', 'team_batting_stats', 'week', False))
+# Function to format specified columns to desired decimal places
+def format_columns(df):
+    columns_to_format = {
+        'AVG': '{:.3f}',
+        'OBP': '{:.3f}',
+        'SLG': '{:.3f}',
+        'OPS': '{:.3f}',
+        'BABIP': '{:.3f}',
+        'IP': '{:.1f}',
+        'SIERA': '{:.2f}',
+        'xFIP': '{:.2f}',
+        'GB%': '{:.1f}',
+        'K%': '{:.1f}',
+        'BB%': '{:.1f}',
+        'SwStr%': '{:.1f}',
+        'LOB%': '{:.1f}'
+    }
+    for column, format_spec in columns_to_format.items():
+        if column in df.columns:
+            df[column] = df[column].apply(lambda x: format_spec.format(x) if pd.notnull(x) else x)
+    return df
 
-# Displaying data
-st.write("## Current Season Insights")
-st.write("### Top 5 Pitchers of the Season")
-st.dataframe(top_pitchers_season)
+# Function to convert decimal columns to percentages
+def convert_to_percentage(df):
+    columns_to_convert = ['GB%', 'K%', 'BB%', 'SwStr%', 'LOB%']
+    for column in columns_to_convert:
+        if column in df.columns:
+            df[column] = df[column].apply(lambda x: x * 100)
+    return df
 
-st.write("### Bottom 5 Pitchers of Last Week")
-st.dataframe(bottom_pitchers_week)
+# Generate weekly article button
+if st.button("Generate Weekly Baseball Article"):
+    # Fetching data
+    top_starting_pitchers = fetch_data(top_10_starting_pitchers_query)
+    bottom_starting_pitchers = fetch_data(bottom_10_starting_pitchers_query)
+    top_reliever_pitchers = fetch_data(top_10_reliever_pitchers_query)
+    bottom_reliever_pitchers = fetch_data(bottom_10_reliever_pitchers_query)
+    top_batters = fetch_data(top_10_batters_query)
+    bottom_batters = fetch_data(bottom_10_batters_query)
 
-st.write("### Top 5 Teams of Last Week")
-st.dataframe(top_teams_week)
+    # Converting to percentage
+    top_starting_pitchers = convert_to_percentage(top_starting_pitchers)
+    bottom_starting_pitchers = convert_to_percentage(bottom_starting_pitchers)
+    top_reliever_pitchers = convert_to_percentage(top_reliever_pitchers)
+    bottom_reliever_pitchers = convert_to_percentage(bottom_reliever_pitchers)
 
-st.write("### Bottom 5 Teams of Last Week")
-st.dataframe(bottom_teams_week)
+    # Formatting data
+    top_starting_pitchers = format_columns(top_starting_pitchers)
+    bottom_starting_pitchers = format_columns(bottom_starting_pitchers)
+    top_reliever_pitchers = format_columns(top_reliever_pitchers)
+    bottom_reliever_pitchers = format_columns(bottom_reliever_pitchers)
+    top_batters = format_columns(top_batters)
+    bottom_batters = format_columns(bottom_batters)
 
-# Example of markdown for insights
-st.markdown("""
-Here are some insights:
-- **Top Performers**: Look at the players and teams who have excelled.
-- **Underperformers**: Analysis on why certain players and teams might be struggling.
-""")
+    # Ensure Season is presented correctly
+    for df in [top_starting_pitchers, bottom_starting_pitchers, top_reliever_pitchers, bottom_reliever_pitchers, top_batters, bottom_batters]:
+        if 'Season' in df.columns:
+            df['Season'] = df['Season'].astype(str)
 
-# Visualization with Altair
-def create_chart(data, title):
-    return alt.Chart(data).mark_bar().encode(
-        x=alt.X('Team or Name:N', sort='-y'),
-        y='Stat:Q',
-        color=alt.Color('Team or Name:N', scale=alt.Scale(domain=list(team_colors.keys()), range=list(team_colors.values())))
-    ).properties(title=title, width=600, height=400)
+    # Displaying data
+    st.write("## Weekly Baseball Report")
+    
+    st.write("### Top 10 Starting Pitchers")
+    st.dataframe(top_starting_pitchers)
 
-st.altair_chart(create_chart(top_pitchers_season, "Top Pitchers This Season"))
-st.altair_chart(create_chart(bottom_pitchers_week, "Bottom Pitchers Last Week"))
+    st.write("### Bottom 10 Starting Pitchers")
+    st.dataframe(bottom_starting_pitchers)
+    
+    st.write("### Top 10 Relief Pitchers")
+    st.dataframe(top_reliever_pitchers)
+
+    st.write("### Bottom 10 Relief Pitchers")
+    st.dataframe(bottom_reliever_pitchers)
+
+    st.write("### Top 10 Batters")
+    st.dataframe(top_batters)
+
+    st.write("### Bottom 10 Batters")
+    st.dataframe(bottom_batters)
+
+    # Generating article
+    weekly_article = create_weekly_article(top_starting_pitchers, bottom_starting_pitchers, top_reliever_pitchers, bottom_reliever_pitchers, top_batters, bottom_batters)
+    st.markdown(weekly_article)
