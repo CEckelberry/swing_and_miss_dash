@@ -20,7 +20,7 @@ project_id = "swingandmiss"  # Replace with your project ID
 vertexai.init(project=project_id, location="us-central1", credentials=credentials)
 
 # Initialize Gemini model
-model = GenerativeModel(model_name="gemini-1.0-pro-001")
+model = GenerativeModel(model_name="gemini-1.5-pro")
 
 def generate_gemini_content(prompt):
     # Define the user's prompt in a Content object
@@ -31,58 +31,15 @@ def generate_gemini_content(prompt):
         ],
     )
 
-    # Specify a function declaration for the prompt (if needed, can be customized)
-    function_name = "generate_report_section"
-    generate_report_section_func = FunctionDeclaration(
-        name=function_name,
-        description="Generate a section of a weekly baseball report",
-        parameters={
-            "type": "object",
-            "properties": {"section": {"type": "string", "description": "Section of the report"}},
-        },
-    )
-
-    # Define a tool that includes the above function declaration
-    report_tool = Tool(
-        function_declarations=[generate_report_section_func],
-    )
-
-    # Send the prompt and instruct the model to generate content using the Tool
+    # Send the prompt and instruct the model to generate content
     response = model.generate_content(
         user_prompt_content,
         generation_config=GenerationConfig(temperature=0),
-        tools=[report_tool],
     )
 
-    function_call = response.candidates[0].function_calls[0]
-    if function_call.name == function_name:
-        # Extract the arguments to use in your API call
-        section = function_call.args["section"]
+    # Check if the response contains candidates
+    if not response.candidates:
+        return "No candidates found in the response"
 
-        # Here you can use your preferred method to make an API request to fetch additional data if needed
-
-        # In this example, we'll simulate a response payload
-        api_response = {"section": section, "content": "Generated content for the section"}
-
-        # Return the API response to Gemini so it can generate a model response or request another function call
-        response = model.generate_content(
-            [
-                user_prompt_content,  # User prompt
-                response.candidates[0].content,  # Function call response
-                Content(
-                    parts=[
-                        Part.from_function_response(
-                            name=function_name,
-                            response={
-                                "content": api_response,  # Return the API response to Gemini
-                            },
-                        ),
-                    ],
-                ),
-            ],
-            tools=[report_tool],
-        )
-
-        return response.candidates[0].content
-    else:
-        return "Failed to generate content"
+    # Extract and return the generated text from the first candidate
+    return response.candidates[0].content.parts[0].text if response.candidates[0].content.parts else "No content generated"
