@@ -4,6 +4,8 @@ import altair as alt
 from google.cloud import bigquery
 from google.oauth2 import service_account
 import datetime
+import streamlit.components.v1 as components
+
 # Credentials and client setup
 credentials = service_account.Credentials.from_service_account_info(st.secrets["gcp_service_account"])
 client = bigquery.Client(credentials=credentials)
@@ -31,16 +33,16 @@ season = st.selectbox('Select the season:', seasons, index=0)
 # Fetch data based on the selected season
 def fetch_data(season):
     if season >= current_year:
-    # Query for seasons 2024 or later, filtering by the latest 'upload_date'
+        # Query for seasons 2024 or later, filtering by the latest 'upload_date'
         query = f"""
-            SELECT 
+            SELECT
                 Season, `Team`, `W`, `L`, `ERA`, `G`, `GS`, `CG`, `SV`, `BS`, `IP`, `H`, `R`, `HR`, `BB`, `HBP`,
                 `Balls`, `Strikes`, `K_9`, `BB_9`, `K_BB`, `H_9`, `HR_9`, `AVG`, `WHIP`, `BABIP`, `LOB_`, `FIP`,
                 `GB_FB`, `LD_`, `GB_`, `FB_`, `HR_FB`, `Start_IP`, `Relief_IP`, `WAR`, `xFIP`, `SIERA`, `xERA`,
                 `Barrel_`, `HardHit_`
-            FROM 
+            FROM
                 `raw_data`.`team_pitching_stats`
-            WHERE 
+            WHERE
                 `Season` = {season}
                 AND `upload_date` = (
                     SELECT MAX(`upload_date`)
@@ -51,14 +53,14 @@ def fetch_data(season):
     else:
         # Query for seasons before 2024, ignoring 'upload_date'
         query = f"""
-        SELECT 
+        SELECT
             Season, `Team`, `W`, `L`, `ERA`, `G`, `GS`, `CG`, `SV`, `BS`, `IP`, `H`, `R`, `HR`, `BB`, `HBP`,
             `Balls`, `Strikes`, `K_9`, `BB_9`, `K_BB`, `H_9`, `HR_9`, `AVG`, `WHIP`, `BABIP`, `LOB_`, `FIP`,
             `GB_FB`, `LD_`, `GB_`, `FB_`, `HR_FB`, `Start_IP`, `Relief_IP`, `WAR`, `xFIP`, `SIERA`, `xERA`,
             `Barrel_`, `HardHit_`
-        FROM 
+        FROM
             `raw_data`.`team_pitching_stats`
-        WHERE 
+        WHERE
             `Season` = {season}
         """
     return pd.read_gbq(query, credentials=credentials, dialect='standard')
@@ -82,3 +84,41 @@ for stat in stat_columns:
     ).interactive()
 
     st.altair_chart(chart, use_container_width=True)
+
+    # JavaScript to copy chart to clipboard
+    copy_button = """
+        <script>
+        function copyChartToClipboard(chartId) {
+            const chartElement = document.getElementById(chartId);
+            if (!chartElement) {
+                alert('Chart element not found!');
+                return;
+            }
+            html2canvas(chartElement).then(canvas => {
+                canvas.toBlob(blob => {
+                    const item = new ClipboardItem({ 'image/png': blob });
+                    navigator.clipboard.write([item]).then(() => {
+                        alert('Chart copied to clipboard!');
+                    });
+                });
+            });
+        }
+        </script>
+    """
+
+    # Unique ID for the chart div
+    chart_id = f"chart-{stat}"
+
+    # HTML for the chart container and copy button
+    chart_container = f"""
+        <div id="{chart_id}">{chart.to_html()}</div>
+        <button onclick="copyChartToClipboard('{chart_id}')">Copy to Clipboard</button>
+    """
+
+    components.html(copy_button + chart_container)
+
+# Ensure the html2canvas library is loaded
+html2canvas_script = """
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+"""
+components.html(html2canvas_script, height=0)

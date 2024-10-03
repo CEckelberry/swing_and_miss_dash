@@ -1,34 +1,87 @@
-# Data Science and Society Dashboard: Greenhouse Gas Emissions for the Benelux Region and Solar as our Savior
+# Baseball Stats Dashboard - Swing And Miss Comparison App
 
-## Overview
+This Streamlit application provides an interactive dashboard for exploring and visualizing various baseball statistics. The dashboard covers team and player performance across different seasons, offering insights into batting, pitching, and fielding metrics.
 
-The aim with this dashboard is to provide the governments of the Benelux with information on various aspects of energy consumption and solar energy production. The dashboard will encompass an overview of energy consumption across industries, the current state of solar energy generated in the Benelux, and how solar energy can help them with their nationally determined contributions, that each country sets to achieve the Paris Agreement goals.
+## Features
+
+- Multi-page application with different views:
+  - Home
+  - Weekly Article
+  - Team Batting
+  - Team Fielding
+  - Team Pitching
+  - Position Player Offense
+  - Position Player Defense
+  - Pitcher
+- Season selection for historical data analysis
+- Player selection and comparison
+- League average comparisons
+- Interactive charts and tables
+
+## Application Screenshots
+
+![Screenshot 1](images/image.png)
+![Screenshot 2](images/image2.png)
+![Screenshot 3](images/image3.png)
+![Screenshot 4](images/image4.png)
+![Screenshot 5](images/image5.png)
+![Screenshot 6](images/image6.png)
 
 ## Setup
 
-The dashboard is containerized using Docker. Follow these steps to set it up:
+1. Ensure you have Python installed on your system.
+2. Install the required dependencies after navigating to the /dashboard directory:
 
-### Prerequisites
+   `pip install -r requirements.txt`
 
-- Docker installed and running on your machine.
+## Project Structure
 
-### Installation
+- `app.py`: Main application file and navigation setup
+- `position_player_off.py`: Position player offensive statistics
+- `position_player_def.py`: Position player defensive statistics
+- `pitcher.py`: Pitcher statistics and metrics
+- `docker-compose.yml`: Docker configuration for running the application
+- Additional utility files for data processing, player selection, and season selection
 
-1. Clone this repository.
-2. run the following command: `docker-compose up --build`
-3. Wait for the PostgreSQL database to initialize, and the uploader script to insert data. Look for specific confirmation lines in the terminal (shown below).
-   ![uploader has finished](image.png)
+## Running the Application
 
-## Using the Dashboard
+### Using Docker
 
-- Access the Dashboard at: http://localhost:8501/
-- The Dashboard caches queries for improved performance. Switching between panels should not always trigger a re-run of queries. Sometimes you might need to refresh if your screen isn't showing the page icon's.
+1. Ensure you have Docker and Docker Compose installed on your system.
+2. Navigate to the project directory in your terminal.
+3. Run the following command:
 
-## If you want to run the prediction model yourself
+`docker-compose up --build`
 
-Due to the sheer size and performance hit of running pytorch + neuralprophet + other large packages, when running alongside our dashboard, we decided it would be best to create a separate docker container where these machine learning packages can be run at your leisure, this prevents the dashboard docker-commpose from taking > 15 minutes to build/run. In addition to the build times, we saw significant dropoff in performance/load times of the dashboard. You can run the predictions docker container with the below instructions:
+4. Once the container is running, access the application at `http://localhost:8501`
 
-1. cd into the predictions folder
-2. run `docker build -t solar-prediction-app .`
-3. once the build is done, run `docker run -v ${PWD}/predictions:/usr/src/app/output solar-prediction-app`
-4. The predictions script will run and output a csv
+### Without Docker
+
+To run the dashboard locally:
+
+1. Navigate to the /dashboard project directory in your terminal.
+2. Make sure you have python installed
+3. Run the following command: `python -m streamlit run app.py `
+4. The application should open in your default web browser.
+
+## Usage
+
+1. Use the sidebar to navigate between different pages of the application.
+2. On each page, you can select seasons, players, or teams to analyze.
+3. For player comparisons:
+
+- Select a player using the player selection tool
+- Choose seasons for comparison
+- View the resulting statistics and visualizations
+
+## Customization
+
+You can easily extend the dashboard by adding new pages or modifying existing ones. To add a new page:
+
+1. Create a new Python file for your page (e.g., `new_stats_page.py`)
+2. Add the page to the `show_pages` function in `app.py`
+3. Implement your new statistics or visualizations in the new file
+
+## Contributing
+
+Contributions to improve the dashboard are welcome. Please feel free to submit pull requests or open issues for any bugs or feature requests.
